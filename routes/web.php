@@ -35,8 +35,9 @@ Route::get('/produk/kode', [PenjualanDetailController::class, 'getKode'])
         ->name('produk.getKode');
         Route::get('/produk/kode', [PenjualanDetailController::class, 'getKode'])
      ->name('produk.getKode');
-        Route::get('/transaksi/{id}/data', [PenjualanDetailController::class, 'data'])->name('transaksi.data');
+        Route::get('/transaksi/{id?}/data', [PenjualanDetailController::class, 'data'])->name('transaksi.data');
         Route::get('/transaksi/loadform/{diskon}/{total}/{diterima}', [PenjualanDetailController::class, 'loadForm'])->name('transaksi.load_form');
+        Route::get('/transaksi/loadform', [PenjualanDetailController::class, 'loadForm'])->name('transaksi.loadform');
         Route::resource('/transaksi', PenjualanDetailController::class)
             ->except('create', 'show', 'edit');
             Route::get('/produk/stok-rendah', [ProdukController::class, 'stokRendah']);
@@ -46,10 +47,14 @@ Route::get('/produk/kode', [PenjualanDetailController::class, 'getKode'])
         Route::get('/penjualan', [PenjualanController::class, 'index'])->name('penjualan.index');
         Route::get('/penjualan/{id}', [PenjualanController::class, 'show'])->name('penjualan.show');
         Route::delete('/penjualan/{id}', [PenjualanController::class, 'destroy'])->name('penjualan.destroy');
-                Route::get('/penjualan/data', [PenjualanController::class, 'data'])->name('penjualan.data');
+        
+        Route::get('/penjualan/data', [PenjualanController::class, 'data'])->name('penjualan.data');
         Route::get('/penjualan', [PenjualanController::class, 'index'])->name('penjualan.index');
         Route::get('/penjualan/{id}', [PenjualanController::class, 'show'])->name('penjualan.show');
         Route::delete('/penjualan/{id}', [PenjualanController::class, 'destroy'])->name('penjualan.destroy');
+        Route::get('/member/data', [MemberController::class, 'data'])->name('member.data');
+        Route::post('/member/cetak-member', [MemberController::class, 'cetakMember'])->name('member.cetak_member');
+        Route::resource('/member', MemberController::class);
         
     });
 Route::get('penjualan/export-all', [PenjualanController::class, 'exportAllPdf'])
@@ -76,9 +81,7 @@ Route::group(['middleware' => 'auth'], function () {
         Route::post('/produk/cetak-barcode', [ProdukController::class, 'cetakBarcode'])->name('produk.cetak_barcode');
         Route::resource('/produk', ProdukController::class);
 
-        Route::get('/member/data', [MemberController::class, 'data'])->name('member.data');
-        Route::post('/member/cetak-member', [MemberController::class, 'cetakMember'])->name('member.cetak_member');
-        Route::resource('/member', MemberController::class);
+        
 
         Route::get('/supplier/data', [SupplierController::class, 'data'])->name('supplier.data');
         Route::resource('/supplier', SupplierController::class);
@@ -119,6 +122,9 @@ Route::get('/laporan/pdf/{awal}/{akhir}', [LaporanController::class, 'exportPDF'
     Route::group(['middleware' => 'level:1,0'], function () {
         Route::get('/profil', [UserController::class, 'profil'])->name('user.profil');
         Route::post('/profil', [UserController::class, 'updateProfil'])->name('user.update_profil');
+        
+        // Member access for cashier (read-only to select member in transactions)
+        Route::get('/member/{id}', [MemberController::class, 'show'])->name('member.show_for_transaction');
     });
 });
 Route::get('penjualan/{id}/notaBesar', [PenjualanController::class, 'notaBesar'])
@@ -139,9 +145,4 @@ Route::put('pembelian/{pembelian}/receive',
      Route::get('pembelian/{pembelian}/edit',
     [PembelianController::class, 'edit'])
      ->name('pembelian.edit');
-     Route::get('/transaksi/loadform', [PenjualanDetailController::class, 'loadForm'])
-     ->name('transaksi.loadform');
-Route::get('/member/{id}', [MemberController::class, 'show']);
-Route::get('/transaksi/loadform', [PenjualanDetailController::class, 'loadForm']);
-;
 

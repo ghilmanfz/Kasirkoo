@@ -103,9 +103,21 @@
                 })
                 .fail(errors => {
                     if (errors.status == 422) {
-                        alert(errors.responseJSON); 
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Validasi Gagal!',
+                            text: JSON.stringify(errors.responseJSON),
+                            showConfirmButton: false,
+                            timer: 5000
+                        });
                     } else {
-                        alert('Tidak dapat menyimpan data');
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Gagal!',
+                            text: 'Tidak dapat menyimpan data',
+                            showConfirmButton: false,
+                            timer: 3000
+                        });
                     }
                     return;
                 });

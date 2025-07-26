@@ -81,7 +81,13 @@
                         table.ajax.reload();
                     })
                     .fail((errors) => {
-                        alert('Tidak dapat menyimpan data');
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Gagal!',
+                            text: 'Tidak dapat menyimpan data',
+                            showConfirmButton: false,
+                            timer: 3000
+                        });
                         return;
                     });
             }
@@ -123,7 +129,13 @@
                 $('#modal-from[nama=foto]').val(response.foto);
             })
             .fail((errors) => {
-                alert('Tidak dapat menampilkan data');
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal!',
+                    text: 'Tidak dapat menampilkan data',
+                    showConfirmButton: false,
+                    timer: 3000
+                });
                 return;
             });
     }
@@ -138,7 +150,13 @@
                     table.ajax.reload();
                 })
                 .fail((errors) => {
-                    alert('Tidak dapat menghapus data');
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Gagal!',
+                        text: 'Tidak dapat menghapus data',
+                        showConfirmButton: false,
+                        timer: 3000
+                    });
                     return;
                 });
         }
@@ -152,22 +170,46 @@
                         table.ajax.reload();
                     })
                     .fail((errors) => {
-                        alert('Tidak dapat menghapus data');
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Gagal!',
+                            text: 'Tidak dapat menghapus data',
+                            showConfirmButton: false,
+                            timer: 3000
+                        });
                         return;
                     });
             }
         } else {
-            alert('Pilih data yang akan dihapus');
+            Swal.fire({
+                icon: 'warning',
+                title: 'Peringatan!',
+                text: 'Pilih data yang akan dihapus',
+                showConfirmButton: false,
+                timer: 3000
+            });
             return;
         }
     }
 
     function cetakBarcode(url) {
         if ($('input:checked').length < 1) {
-            alert('Pilih data yang akan dicetak');
+            Swal.fire({
+                icon: 'warning',
+                title: 'Peringatan!',
+                text: 'Pilih data yang akan dicetak',
+                showConfirmButton: false,
+                timer: 3000
+            });
             return;
         } else if ($('input:checked').length < 3) {
-            alert('Pilih minimal 3 data untuk dicetak');
+            Swal.fire({
+                icon: 'warning',
+                title: 'Peringatan!',
+                text: 'Pilih minimal 3 data untuk dicetak',
+                showConfirmButton: false,
+                timer: 3000
+            });
             return;
         } else {
             $('.form-produk')

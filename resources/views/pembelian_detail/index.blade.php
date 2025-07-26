@@ -169,12 +169,24 @@
 
             if (jumlah < 1) {
                 $(this).val(1);
-                alert('Jumlah tidak boleh kurang dari 1');
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Jumlah Tidak Valid!',
+                    text: 'Jumlah tidak boleh kurang dari 1',
+                    showConfirmButton: false,
+                    timer: 3000
+                });
                 return;
             }
             if (jumlah > 10000) {
                 $(this).val(10000);
-                alert('Jumlah tidak boleh lebih dari 10000');
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Jumlah Terlalu Besar!',
+                    text: 'Jumlah tidak boleh lebih dari 10000',
+                    showConfirmButton: false,
+                    timer: 3000
+                });
                 return;
             }
 
@@ -189,7 +201,13 @@
                     });
                 })
                 .fail(errors => {
-                    alert('Tidak dapat menyimpan data');
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Gagal!',
+                        text: 'Tidak dapat menyimpan data',
+                        showConfirmButton: false,
+                        timer: 3000
+                    });
                     return;
                 });
         });
@@ -199,7 +217,13 @@ $(document).on('input', '.harga-beli', function () {
 
     if (harga < 1) {
         $(this).val(1);
-        alert('Harga tidak boleh 0');
+        Swal.fire({
+            icon: 'warning',
+            title: 'Harga Tidak Valid!',
+            text: 'Harga tidak boleh 0',
+            showConfirmButton: false,
+            timer: 3000
+        });
         return;
     }
 
@@ -211,7 +235,13 @@ $(document).on('input', '.harga-beli', function () {
     .done(() => {
         table.ajax.reload(() => loadForm($('#diskon').val()));
     })
-    .fail(() => alert('Tidak dapat menyimpan harga'));
+    .fail(() => Swal.fire({
+        icon: 'error',
+        title: 'Gagal!',
+        text: 'Tidak dapat menyimpan harga',
+        showConfirmButton: false,
+        timer: 3000
+    }));
 });
         $(document).on('input', '#diskon', function () {
             if ($(this).val() == "") {
@@ -239,7 +269,13 @@ function tambahProdukByKode(kode) {
   $.get("{{ route('produk.getKode') }}", { kode_produk : kode })
     .done(res => {
         if (!res.success) {
-            alert('Produk tidak ditemukan!');
+            Swal.fire({
+                icon: 'warning',
+                title: 'Produk Tidak Ditemukan!',
+                text: 'Produk tidak ditemukan!',
+                showConfirmButton: false,
+                timer: 3000
+            });
             $('#kode_produk').select();
             return;
         }
@@ -276,7 +312,13 @@ function tambahProdukByKode(kode) {
                 table.ajax.reload(() => loadForm($('#diskon').val()));
             })
             .fail(errors => {
-                alert('Tidak dapat menyimpan data');
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal!',
+                    text: 'Tidak dapat menyimpan data',
+                    showConfirmButton: false,
+                    timer: 3000
+                });
                 return;
             });
     }
@@ -291,7 +333,13 @@ function tambahProdukByKode(kode) {
                     table.ajax.reload(() => loadForm($('#diskon').val()));
                 })
                 .fail((errors) => {
-                    alert('Tidak dapat menghapus data');
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Gagal!',
+                        text: 'Tidak dapat menghapus data',
+                        showConfirmButton: false,
+                        timer: 3000
+                    });
                     return;
                 });
         }
@@ -329,7 +377,13 @@ function tambahProdukByKode(kode) {
       })
       .fail(errors => {
         console.error(errors.responseText);
-        alert('Tidak dapat menampilkan data');
+        Swal.fire({
+            icon: 'error',
+            title: 'Gagal!',
+            text: 'Tidak dapat menampilkan data',
+            showConfirmButton: false,
+            timer: 3000
+        });
       });
 }
 

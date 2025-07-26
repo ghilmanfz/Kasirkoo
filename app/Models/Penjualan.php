@@ -12,6 +12,11 @@ class Penjualan extends Model
     protected $table = 'penjualan';
     protected $primaryKey = 'id_penjualan';
     protected $guarded = [];
+    
+    protected $casts = [
+        'void_requested_at' => 'datetime',
+        'void_approved_at' => 'datetime',
+    ];
 
     public function member()
     {
@@ -21,6 +26,16 @@ class Penjualan extends Model
     public function user()
     {
         return $this->hasOne(User::class, 'id', 'id_user');
+    }
+    
+    public function voidRequestedBy()
+    {
+        return $this->belongsTo(User::class, 'void_requested_by');
+    }
+    
+    public function voidApprovedBy()
+    {
+        return $this->belongsTo(User::class, 'void_approved_by');
     }
      public function detail()
     {

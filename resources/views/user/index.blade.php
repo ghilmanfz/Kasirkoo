@@ -62,7 +62,13 @@
                         table.ajax.reload();
                     })
                     .fail((errors) => {
-                        alert('Tidak dapat menyimpan data');
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Gagal!',
+                            text: 'Tidak dapat menyimpan data',
+                            showConfirmButton: false,
+                            timer: 3000
+                        });
                         return;
                     });
             }
@@ -98,7 +104,13 @@
                 $('#modal-form [name=email]').val(response.email);
             })
             .fail((errors) => {
-                alert('Tidak dapat menampilkan data');
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal!',
+                    text: 'Tidak dapat menampilkan data',
+                    showConfirmButton: false,
+                    timer: 3000
+                });
                 return;
             });
     }
@@ -113,7 +125,13 @@
                     table.ajax.reload();
                 })
                 .fail((errors) => {
-                    alert('Tidak dapat menghapus data');
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Gagal!',
+                        text: 'Tidak dapat menghapus data',
+                        showConfirmButton: false,
+                        timer: 3000
+                    });
                     return;
                 });
         }

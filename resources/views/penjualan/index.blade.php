@@ -32,7 +32,7 @@
                         <th>Diskon</th>
                         <th>Total Bayar</th>
                         <th>Kasir</th>
-                        <th>metode Pembayran </th>
+                        <th>metode Pembayran</th>
                         <th width="15%"><i class="fa fa-cog"></i></th>
                     </thead>
                 </table>
@@ -67,7 +67,7 @@
                 {data: 'diskon'},
                 {data: 'bayar'},
                 {data: 'kasir'},
-                {data: 'metode_pembayaran'}, // Tambahkan kolom ini
+                {data: 'metode_pembayaran'},
                 {data: 'aksi', searchable: false, sortable: false},
             ]
         });
@@ -83,8 +83,9 @@
                 {data: 'kode_produk'},
                 {data: 'nama_produk'},
                 {data: 'harga_jual'},
+                {data: 'diskon'},
                 {data: 'jumlah'},
-                {data: 'subtotal'},
+                {data: 'bayar'},
             ]
         })
     });
@@ -106,7 +107,13 @@
                     table.ajax.reload();
                 })
                 .fail((errors) => {
-                    alert('Tidak dapat menghapus data');
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Gagal!',
+                        text: 'Tidak dapat menghapus data',
+                        showConfirmButton: false,
+                        timer: 3000
+                    });
                     return;
                 });
         }
@@ -118,7 +125,13 @@ function printNota(url) {
 $('#btn-export-date').on('click', function() {
     const tgl = $('#export_date').val(); 
     if (!tgl) {
-        return alert('Silakan pilih tanggal dulu.');
+        return Swal.fire({
+            icon: 'warning',
+            title: 'Peringatan!',
+            text: 'Silakan pilih tanggal dulu.',
+            showConfirmButton: false,
+            timer: 3000
+        });
     }
     const url = '{{ url("penjualan/export") }}/' + tgl;
     window.open(url, '_blank', 'noopener');

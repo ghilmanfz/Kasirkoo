@@ -6,9 +6,8 @@
 
             <div class="modal-content">
                 <div class="modal-header">
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span
+                            aria-hidden="true">&times;</span></button>
                     <h4 class="modal-title"></h4>
                 </div>
                 <div class="modal-body">
@@ -31,29 +30,16 @@
                         <div class="col-lg-6">
                             <textarea name="alamat" id="alamat" rows="3" class="form-control"></textarea>
                             <span class="help-block with-errors"></span>
+                        <div class="input-group">
+                            <input type="number" name="diskon"
+                                class="form-control" id="diskon"  step="0.01" required>
+                            <span class="input-group-addon" id="diskon-unit">%</span>
                         </div>
-                    </div>
-                    <div class="form-group row">
-                        <label for="diskon_type" class="col-lg-2 col-lg-offset-1 control-label">Tipe Diskon</label>
-                        <div class="col-lg-6">
-                            <select name="diskon_type" id="diskon_type" class="form-control">
-                                <option value="percent">Persen (%)</option>
-                                <option value="nominal">Nominal (Rp)</option>
-                            </select>
-                            <span class="help-block with-errors"></span>
-                        </div>
-                    </div>
-                    <div class="form-group row">
-                        <label for="diskon" class="col-lg-2 col-lg-offset-1 control-label">Diskon</label>
-                        <div class="col-lg-6">
-                            <div class="input-group">
-                                <input type="number" name="diskon" class="form-control" id="diskon" step="0.01" min="0" max="999999999" required>
-                                <span class="input-group-addon" id="diskon-unit">%</span>
-                            </div>
-                            <span class="help-block with-errors"></span>
-                        </div>
-                    </div>
-                </div>
+                        <span class="help-block with-errors"></span>
+                        <select name="diskon_type" id="diskon_type" class="form-control">
+                            <option value="percent">Persen (%)</option>
+                            <option value="nominal">Nominal (Rp)</option>
+                        </select>
                 <div class="modal-footer">
                     <button class="btn btn-sm btn-flat btn-primary"><i class="fa fa-save"></i> Simpan</button>
                     <button type="button" class="btn btn-sm btn-flat btn-warning" data-dismiss="modal"><i class="fa fa-arrow-circle-left"></i> Batal</button>
@@ -62,23 +48,3 @@
         </form>
     </div>
 </div>
-
-<script>
-// Update unit display when discount type changes
-$('#diskon_type').on('change', function() {
-    var type = $(this).val();
-    var unit = $('#diskon-unit');
-    var input = $('#diskon');
-    
-    if (type === 'percent') {
-        unit.text('%');
-        input.attr('max', '100').attr('step', '0.01');
-    } else {
-        unit.text('Rp');
-        input.attr('max', '999999999').attr('step', '1');
-    }
-    
-    // Clear the input value when type changes
-    input.val('');
-});
-</script>

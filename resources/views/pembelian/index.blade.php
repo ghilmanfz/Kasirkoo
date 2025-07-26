@@ -95,7 +95,13 @@ function deleteData(url) {
             _method: 'delete'
         })
         .done(() => table.ajax.reload())
-        .fail(() => alert('Tidak dapat menghapus data'));
+        .fail(() => Swal.fire({
+            icon: 'error',
+            title: 'Gagal!',
+            text: 'Tidak dapat menghapus data',
+            showConfirmButton: false,
+            timer: 3000
+        }));
     }
 }
 
@@ -108,7 +114,13 @@ function receiveData(url){
         success(){ table.ajax.reload(); },
         error (xhr){
             console.error(xhr.responseText);
-            alert('Gagal memproses: '+xhr.status);
+            Swal.fire({
+                icon: 'error',
+                title: 'Gagal Memproses!',
+                text: 'Gagal memproses: '+xhr.status,
+                showConfirmButton: false,
+                timer: 3000
+            });
         }
     });
 }

@@ -7,8 +7,10 @@ use App\Models\PenjualanDetail;
 use App\Models\Produk;
 use App\Models\Setting;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use PDF;
+use Illuminate\Support\Facades\Log;
 
 class PenjualanController extends Controller
 {
@@ -49,10 +51,14 @@ class PenjualanController extends Controller
                 $member = $penjualan->member->kode_member ?? '';
                 return '<span class="label label-success">'. $member .'</spa>';
             })
-            ->addColumn('diskon', function ($member) {
-                 return $member->diskon_type === 'percent'
-                   ? (int) $member->diskon . ' %'                   
-                   : 'Rp ' . number_format($member->diskon, 0, ',', '.'); 
+            ->addColumn('diskon', function ($penjualan) {
+                // Gunakan diskon dari transaksi yang tersimpan
+                if ($penjualan->diskon > 0) {
+                    return $penjualan->diskon_type === 'percent'
+                        ? number_format($penjualan->diskon, 0) . ' %'                   
+                        : 'Rp ' . number_format($penjualan->diskon, 0, ',', '.'); 
+                }
+                return '-';
             })
             ->editColumn('kasir', function ($penjualan) {
                 return $penjualan->user->name ?? '';
@@ -60,14 +66,14 @@ class PenjualanController extends Controller
             ->addColumn('metode_pembayaran', function ($penjualan) {
                 return ucfirst($penjualan->metode_pembayaran ?? '-');
             })
-          
 
             ->addColumn('aksi', function ($penjualan) {
                 return '
                 <div class="btn-group">
                     <button onclick="showDetail(`'. route('penjualan.show', $penjualan->id_penjualan) .'`)" class="btn btn-xs btn-info btn-flat"><i class="fa fa-eye"></i></button>
                     <button onclick="printNota(`'. route('penjualan.notaBesar', $penjualan->id_penjualan) .'`)" class="btn btn-xs btn-warning btn-flat"><i class="fa fa-print"></i></button>
-                    </div>
+                    <button onclick="deleteData(`'. route('penjualan.destroy', $penjualan->id_penjualan) .'`)" class="btn btn-xs btn-danger btn-flat"><i class="fa fa-trash"></i></button>
+                </div>
                 ';
             })
             ->rawColumns(['aksi', 'kode_member'])
@@ -76,50 +82,88 @@ class PenjualanController extends Controller
 
     public function create()
     {
-        $penjualan = new Penjualan();
-        $penjualan->id_member = null;
-        $penjualan->total_item = 0;
-        $penjualan->total_harga = 0;
-        $penjualan->diskon = 0;
-        $penjualan->bayar = 0;
-        $penjualan->diterima = 0;
-        $penjualan->id_user = auth()->id();
-        $penjualan->save();
-
-        session(['id_penjualan' => $penjualan->id_penjualan]);
+        // Hapus session penjualan sebelumnya untuk memulai transaksi baru
+        session()->forget('id_penjualan');
         return redirect()->route('transaksi.index');
     }
 
    public function store(Request $request)
 {
-    $penjualan = Penjualan::findOrFail($request->id_penjualan);
-    $penjualan->id_member = $request->id_member;
-    $penjualan->total_item = $request->total_item;
-    $penjualan->total_harga = $request->total;
-    $penjualan->diskon = $request->diskon;
-    $penjualan->diskon_type = $request->diskon_type;
-    $penjualan->bayar = $request->bayar;
-    $penjualan->diterima = $request->diterima;
-    $penjualan->metode_pembayaran = $request->metode; // Tambahkan ini
-    $penjualan->update();
+    try {
+        // Validasi input dasar
+        $request->validate([
+            'id_penjualan' => 'required|integer',
+            'total' => 'required|numeric|min:0',
+            'total_item' => 'required|numeric|min:0',
+            'bayar' => 'required|numeric|min:0',
+            'diterima' => 'required|numeric|min:0',
+            'metode' => 'required|string'
+        ]);
 
-    // Update stok dan detail
-    $detail = PenjualanDetail::where('id_penjualan', $penjualan->id_penjualan)->get();
-    foreach ($detail as $item) {
-        $item->diskon = $request->diskon;
-        $item->update();
+        $penjualan = Penjualan::findOrFail($request->id_penjualan);
+        
+        // Cek apakah ada detail penjualan
+        $detail_count = PenjualanDetail::where('id_penjualan', $penjualan->id_penjualan)->count();
+        if ($detail_count == 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tidak ada produk dalam transaksi. Silakan tambahkan produk terlebih dahulu.'
+            ], 400);
+        }
 
-        $produk = Produk::find($item->id_produk);
-        $produk->stok -= $item->jumlah;
-        $produk->update();
+        $penjualan->id_member = $request->id_member ?? null;
+        $penjualan->total_item = $request->total_item;
+        $penjualan->total_harga = $request->total;
+        $penjualan->diskon = $request->diskon ?? 0;
+        $penjualan->diskon_type = $request->diskon_type ?? 'percent';
+        $penjualan->bayar = $request->bayar;
+        $penjualan->diterima = $request->diterima;
+        $penjualan->metode_pembayaran = $request->metode;
+        $penjualan->update();
+
+        // Update stok produk
+        $detail = PenjualanDetail::where('id_penjualan', $penjualan->id_penjualan)->get();
+        foreach ($detail as $item) {
+            // Tidak perlu update diskon di detail karena diskon member adalah untuk keseluruhan transaksi
+            // $item->diskon = $request->diskon ?? 0;
+            // $item->update();
+
+            $produk = Produk::find($item->id_produk);
+            if ($produk) {
+                $produk->stok -= $item->jumlah;
+                $produk->update();
+            }
+        }
+
+        // Return JSON response untuk AJAX
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Transaksi berhasil disimpan',
+                'redirect' => route('transaksi.selesai')
+            ]);
+        }
+
+        return redirect()->route('transaksi.selesai');
+        
+    } catch (\Exception $e) {
+        Log::error('Error saving transaction: ' . $e->getMessage());
+        
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal menyimpan transaksi: ' . $e->getMessage()
+            ], 500);
+        }
+        
+        return back()->with('error', 'Gagal menyimpan transaksi: ' . $e->getMessage());
     }
-
-    return redirect()->route('transaksi.selesai');
 }
 
     public function show($id)
     {
         $detail = PenjualanDetail::with('produk')->where('id_penjualan', $id)->get();
+        $penjualan = Penjualan::find($id);
 
         return datatables()
             ->of($detail)
@@ -133,11 +177,44 @@ class PenjualanController extends Controller
             ->addColumn('harga_jual', function ($detail) {
                 return 'Rp. '. format_uang($detail->harga_jual);
             })
+            ->addColumn('diskon', function ($detail) use ($penjualan) {
+                // Gunakan diskon member dari tabel penjualan
+                if ($penjualan && $penjualan->diskon > 0) {
+                    return $penjualan->diskon_type === 'percent'
+                        ? number_format($penjualan->diskon, 0) . ' %'
+                        : 'Rp ' . format_uang($penjualan->diskon);
+                }
+                return '-';
+            })
             ->addColumn('jumlah', function ($detail) {
                 return format_uang($detail->jumlah);
             })
             ->addColumn('subtotal', function ($detail) {
-                return 'Rp. '. format_uang($detail->subtotal);
+                return 'Rp. '. format_uang($detail->harga_jual * $detail->jumlah);
+            })
+            ->addColumn('bayar', function ($detail) use ($penjualan) {
+                // Hitung bayar = subtotal - diskon member (proportional)
+                $subtotal = $detail->harga_jual * $detail->jumlah;
+                $diskon_amount = 0;
+                
+                if ($penjualan && $penjualan->diskon > 0) {
+                    if ($penjualan->diskon_type === 'percent') {
+                        // Diskon persen diterapkan langsung ke subtotal item
+                        $diskon_amount = $subtotal * ($penjualan->diskon / 100);
+                    } else {
+                        // Diskon nominal dibagi proporsional berdasarkan total semua item
+                        $total_semua_item = PenjualanDetail::where('id_penjualan', $penjualan->id_penjualan)
+                            ->sum(DB::raw('harga_jual * jumlah'));
+                        
+                        if ($total_semua_item > 0) {
+                            $proporsi = $subtotal / $total_semua_item;
+                            $diskon_amount = $penjualan->diskon * $proporsi;
+                        }
+                    }
+                }
+                
+                $bayar = $subtotal - $diskon_amount;
+                return 'Rp. '. format_uang(max(0, $bayar));
             })
             ->rawColumns(['kode_produk'])
             ->make(true);

@@ -74,7 +74,13 @@
                         table.ajax.reload();
                     })
                     .fail((errors) => {
-                        alert('Tidak dapat menyimpan data');
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Gagal!',
+                            text: 'Tidak dapat menyimpan data',
+                            showConfirmButton: false,
+                            timer: 3000
+                        });
                         return;
                     });
             }
@@ -109,9 +115,30 @@
                 $('#modal-form [name=nama]').val(response.nama);
                 $('#modal-form [name=telepon]').val(response.telepon);
                 $('#modal-form [name=alamat]').val(response.alamat);
+                $('#modal-form [name=diskon]').val(response.diskon);
+                $('#modal-form [name=diskon_type]').val(response.diskon_type);
+                
+                // Update unit display based on discount type
+                var type = response.diskon_type || 'percent';
+                var unit = $('#diskon-unit');
+                var input = $('#diskon');
+                
+                if (type === 'percent') {
+                    unit.text('%');
+                    input.attr('max', '100').attr('step', '0.01');
+                } else {
+                    unit.text('Rp');
+                    input.attr('max', '999999999').attr('step', '1');
+                }
             })
             .fail((errors) => {
-                alert('Tidak dapat menampilkan data');
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal!',
+                    text: 'Tidak dapat menampilkan data',
+                    showConfirmButton: false,
+                    timer: 3000
+                });
                 return;
             });
     }
@@ -126,7 +153,13 @@
                     table.ajax.reload();
                 })
                 .fail((errors) => {
-                    alert('Tidak dapat menghapus data');
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Gagal!',
+                        text: 'Tidak dapat menghapus data',
+                        showConfirmButton: false,
+                        timer: 3000
+                    });
                     return;
                 });
         }
@@ -134,7 +167,13 @@
 
     function cetakMember(url) {
         if ($('input:checked').length < 1) {
-            alert('Pilih data yang akan dicetak');
+            Swal.fire({
+                icon: 'warning',
+                title: 'Peringatan!',
+                text: 'Pilih data yang akan dicetak',
+                showConfirmButton: false,
+                timer: 3000
+            });
             return;
         } else {
             $('.form-member')
@@ -143,8 +182,23 @@
                 .submit();
         }
     }
-    $('#diskon_type').on('change', function () {
-    $('#diskon-unit').text($(this).val() === 'percent' ? '%' : 'Rp');
-}).trigger('change');
+
+    // Handle discount type change
+    $(document).on('change', '#diskon_type', function() {
+        var type = $(this).val();
+        var unit = $('#diskon-unit');
+        var input = $('#diskon');
+        
+        if (type === 'percent') {
+            unit.text('%');
+            input.attr('max', '100').attr('step', '0.01');
+        } else {
+            unit.text('Rp');
+            input.attr('max', '999999999').attr('step', '1');
+        }
+        
+        // Clear the input value when type changes
+        input.val('');
+    });
 </script>
 @endpush

@@ -14,8 +14,9 @@
                         <th>Kode</th>
                         <th>Nama</th>
                         <th>Harga</th>
+                        <th>Diskon </th>
                         <th>Jumlah</th>
-                        <th>Subtotal</th>
+                        <th>Total bayar</th>
                     </thead>
                 </table>
             </div>

@@ -32,16 +32,26 @@ class PenjualanDetailController extends Controller
 
             return view('penjualan_detail.index', compact('produk', 'member', 'diskon', 'id_penjualan', 'penjualan', 'memberSelected'));
         } else {
-            if (auth()->user()->level == 1) {
-                return redirect()->route('transaksi.baru');
+            // Baik admin (level 1) maupun kasir (level 0) bisa melakukan transaksi
+            if (auth()->user()->level == 1 || auth()->user()->level == 0) {
+                // Tidak membuat transaksi otomatis, biarkan user memulai transaksi kosong
+                $id_penjualan = null;
+                $penjualan = null;
+                $memberSelected = new Member();
+                return view('penjualan_detail.index', compact('produk', 'member', 'diskon', 'id_penjualan', 'penjualan', 'memberSelected'));
             } else {
                 return redirect()->route('home');
             }
         }
     }
 
-    public function data($id)
+    public function data($id = null)
     {
+        if (!$id) {
+            // Jika tidak ada id transaksi, kembalikan data kosong
+            return datatables()->of([])->make(true);
+        }
+
         $detail = PenjualanDetail::with('produk')
             ->where('id_penjualan', $id)
             ->get();
@@ -80,6 +90,10 @@ class PenjualanDetailController extends Controller
             ->of($data)
             ->addIndexColumn()
             ->rawColumns(['aksi', 'kode_produk', 'jumlah'])
+            ->with([
+                'total' => $total,
+                'total_item' => $total_item
+            ])
             ->make(true);
     }
 
@@ -193,35 +207,50 @@ public function snapToken(Request $request)
  * @param float  $diterima      Uang yang diterima kasir
  * @param string $diskonType    'percent' | 'nominal'
  */
-public function loadForm(Request $request)
-{
-    $diskon     = floatval($request->diskon);
-    $total      = floatval($request->total);
-    $diterima   = floatval($request->diterima);
-    $diskonType = $request->type ?? 'percent';
+    public function loadForm($diskon = 0, $total = 0, $diterima = 0)
+    {
+        try {
+            // Check if parameters are passed via query string
+            if ($diskon == 0 && $total == 0 && $diterima == 0) {
+                $diskon = request('diskon', 0);
+                $total = request('total', 0);
+                $diterima = request('diterima', 0);
+            }
+            
+            // Ensure numeric values
+            $diskon = (float) $diskon;
+            $total = (float) $total;
+            $diterima = (float) $diterima;
+            
+            $type = request('type', 'percent'); // Default to percent
+            
+            // Calculate discount based on type
+            if ($type === 'nominal') {
+                // Fixed amount discount (e.g., Rp 8000)
+                $bayar = $total - $diskon;
+            } else {
+                // Percentage discount (e.g., 10%)
+                $bayar = $total - ($diskon / 100 * $total);
+            }
+            
+            // Ensure bayar is not negative
+            $bayar = max(0, $bayar);
+            $kembali = ($diterima != 0) ? $diterima - $bayar : 0;
+            
+            $data = [
+                'totalrp' => format_uang($total),
+                'bayar' => $bayar,
+                'bayarrp' => format_uang($bayar),
+                'terbilang' => ucwords(terbilang($bayar). ' Rupiah'),
+                'kembalirp' => format_uang($kembali),
+                'kembali_terbilang' => ucwords(terbilang($kembali). ' Rupiah'),
+            ];
 
-    // ubah ke rupiah jika persen
-    $diskonRupiah = $diskonType === 'percent'
-        ? $total * ($diskon / 100)
-        : $diskon;
-
-    $bayar   = max(0, $total - $diskonRupiah);
-    $kembali = $diterima ? $diterima - $bayar : 0;
-
-    $data = [
-        'totalrp'           => format_uang($total),
-        'diskonrp'          => format_uang($diskonRupiah),
-        'bayar'             => $bayar,
-        'bayarrp'           => format_uang($bayar),
-        'terbilang'         => ucwords(terbilang($bayar).' Rupiah'),
-        'kembalirp'         => format_uang($kembali),
-        'kembali_terbilang' => ucwords(terbilang($kembali).' Rupiah'),
-    ];
-
-    return response()->json($data);
-}
-
-
+            return response()->json($data);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Failed to load form data: ' . $e->getMessage()], 500);
+        }
+    }
 
 public function getToken(Request $request)
 {
@@ -340,8 +369,26 @@ public function store(Request $request)
         return response()->json(['success'=>false, 'message'=>'Stok produk habis '], 400);
     }
 
+    // Cek apakah ada transaksi aktif, jika tidak buat baru
+    $id_penjualan = $request->id_penjualan;
+    if (!$id_penjualan || !session('id_penjualan')) {
+        // Buat transaksi baru
+        $penjualan = new Penjualan();
+        $penjualan->id_member = null;
+        $penjualan->total_item = 0;
+        $penjualan->total_harga = 0;
+        $penjualan->diskon = 0;
+        $penjualan->bayar = 0;
+        $penjualan->diterima = 0;
+        $penjualan->id_user = auth()->id();
+        $penjualan->save();
+
+        session(['id_penjualan' => $penjualan->id_penjualan]);
+        $id_penjualan = $penjualan->id_penjualan;
+    }
+
     $detail = new PenjualanDetail();
-    $detail->id_penjualan = $request->id_penjualan;
+    $detail->id_penjualan = $id_penjualan;
     $detail->id_produk    = $produk->id_produk;
     $detail->harga_jual   = $produk->harga_jual;
     $detail->jumlah       = 1;
@@ -349,7 +396,7 @@ public function store(Request $request)
     $detail->subtotal     = $produk->harga_jual;
     $detail->save();
 
-    return response()->json(['success'=>true]);
+    return response()->json(['success'=>true, 'id_penjualan' => $id_penjualan]);
 }
 
 public function getKode(Request $request)

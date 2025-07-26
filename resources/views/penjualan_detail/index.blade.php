@@ -48,7 +48,7 @@
         <label for="kode_produk" class="col-lg-2">Kode Produk</label>
         <div class="col-lg-5">
             <div class="input-group">
-                <input type="hidden" name="id_penjualan" id="id_penjualan" value="{{ $id_penjualan }}">
+                <input type="hidden" name="id_penjualan" id="id_penjualan" value="{{ $id_penjualan ?? '' }}">
                 <input type="hidden" name="id_produk" id="id_produk">
                 <input type="text" class="form-control" name="kode_produk" id="kode_produk" onkeydown="cekKodeProduk(event)">
                 <span class="input-group-btn">
@@ -78,7 +78,7 @@
                     <div class="col-lg-4">
                         <form action="{{ route('transaksi.simpan') }}" class="form-penjualan" method="post">
                             @csrf
-                            <input type="hidden" name="id_penjualan" value="{{ $id_penjualan }}">
+                            <input type="hidden" name="id_penjualan" value="{{ $id_penjualan ?? '' }}">
                             <input type="hidden" name="total" id="total">
                             <input type="hidden" name="total_item" id="total_item">
                             <input type="hidden" name="bayar" id="bayar">
@@ -106,9 +106,20 @@
                             <div class="form-group row">
                         <label for="diskon" class="col-lg-2 control-label">Diskon</label>
                         <div class="col-lg-8">
-                           <input type="text" id="diskon" class="form-control" readonly value=" %">    <!-- tanpa name -->
-<input type="hidden" name="diskon" id="diskon_value" value="0"> 
-                            <input type="hidden" name="diskon_type" id="diskon_type" value="{{ $memberSelected->diskon_type ?? 'percent' }}">
+                            @php
+                                $memberSelected = session('member_selected') ?? null;
+                                $diskonValue = $memberSelected->diskon ?? 0;
+                                $diskonType = $memberSelected->diskon_type ?? 'percent';
+                                
+                                if ($diskonType === 'percent') {
+                                    $diskonDisplay = $diskonValue . ' %';
+                                } else {
+                                    $diskonDisplay = 'Rp ' . number_format($diskonValue, 0, ',', '.');
+                                }
+                            @endphp
+                            <input type="text" id="diskon" class="form-control" readonly value="{{ $diskonValue > 0 ? $diskonDisplay : '-' }}">    
+                            <input type="hidden" name="diskon" id="diskon_value" value="{{ $diskonValue }}"> 
+                            <input type="hidden" name="diskon_type" id="diskon_type" value="{{ $diskonType }}">
                         </div>
                             </div>
                             <div class="form-group row">
@@ -155,8 +166,27 @@ $(function () {
         if (btnQris.prop('disabled')) return;  
 
         const bayar = parseInt($('#bayar').val()) || 0;
+        
+        // Validasi input kosong
+        if (bayar <= 0) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Peringatan!',
+                text: 'Total bayar tidak valid. Mohon tambahkan produk terlebih dahulu.',
+                showConfirmButton: false,
+                timer: 3000
+            });
+            return;
+        }
+
         if (bayar < 1000) {
-            alert('Nominal harus ≥ 1.000');
+            Swal.fire({
+                icon: 'warning',
+                title: 'Nominal Terlalu Kecil!',
+                text: 'Nominal harus ≥ 1.000',
+                showConfirmButton: false,
+                timer: 3000
+            });
             return;
         }
 
@@ -164,11 +194,17 @@ $(function () {
 
         $.post('/snap-token', {
             _token: '{{ csrf_token() }}',
-            id_penjualan: '{{ $id_penjualan }}'
+            id_penjualan: '{{ $id_penjualan ?? '' }}'
         })
         .done(res => {
             if (!res.success) {
-                alert(res.message);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal!',
+                    text: res.message,
+                    showConfirmButton: false,
+                    timer: 3000
+                });
                 btnQris.prop('disabled', false).text('Bayar QRIS');
                 return;
             }
@@ -178,7 +214,13 @@ $(function () {
                     btnQris.prop('disabled', false).text('Bayar QRIS');
                 },
                 onError: e => {
-                    alert(e.status_message);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Pembayaran Gagal!',
+                        text: e.status_message,
+                        showConfirmButton: false,
+                        timer: 3000
+                    });
                     btnQris.prop('disabled', false).text('Bayar QRIS');
                 },
                 onSuccess: function (r) {
@@ -190,28 +232,53 @@ $(function () {
             });
         })
         .fail(() => {
-            alert('Gagal membuat token');
+            Swal.fire({
+                icon: 'error',
+                title: 'Gagal!',
+                text: 'Gagal membuat token',
+                showConfirmButton: false,
+                timer: 3000
+            });
             btnQris.prop('disabled', false).text('Bayar QRIS');
         });
 
         function simpanTransaksiQR() {
-            $.post('{{ route('transaksi.simpan') }}', {
+            const formData = {
                 _token: '{{ csrf_token() }}',
-                id_penjualan: '{{ $id_penjualan }}',
+                id_penjualan: '{{ $id_penjualan ?? '' }}',
                 total: $('#total').val(),
                 total_item: $('#total_item').val(),
                 bayar: $('#bayar').val(),
                 diterima: $('#diterima').val(),
-                id_member: $('#id_member').val(),
-                diskon: $('#diskon_value').val(),
-                diskon_type: $('#diskon_type').val(), 
+                id_member: $('#id_member').val() || '',
+                diskon: $('#diskon_value').val() || 0,
+                diskon_type: $('#diskon_type').val() || 'percent', 
                 metode: 'QRIS'
-            })
-            .done(() => {
-                location.href = '{{ route('transaksi.selesai') }}';
+            };
+
+            console.log('Data QRIS yang akan dikirim:', formData);
+
+            $.post('{{ route('transaksi.simpan') }}', formData)
+            .done((response) => {
+                if (response.success) {
+                    location.href = response.redirect;
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Gagal!',
+                        text: response.message,
+                        showConfirmButton: true
+                    });
+                    btnQris.prop('disabled', false).text('Bayar QRIS');
+                }
             })
             .fail(() => {
-                alert('Gagal menyimpan transaksi QR');
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal!',
+                    text: 'Gagal menyimpan transaksi QR',
+                    showConfirmButton: true
+                });
                 btnQris.prop('disabled', false).text('Bayar QRIS');
             });
         }
@@ -221,11 +288,20 @@ $(function () {
 $(function () {
     $('body').addClass('sidebar-collapse');
 
+    // Debug: cek initial values
+    console.log('Initial values check:');
+    console.log('ID Penjualan:', '{{ $id_penjualan ?? '' }}');
+    console.log('Member selected:', {
+        id: '{{ $memberSelected->id_member ?? "" }}',
+        kode: '{{ $memberSelected->kode_member ?? "" }}',
+        diskon: '{{ $memberSelected->diskon ?? 0 }}'
+    });
+
     table = $('.table-penjualan').DataTable({
         processing: true,
         autoWidth: false,
         ajax: {
-            url: '{{ route('transaksi.data', $id_penjualan) }}',
+            url: '{{ route('transaksi.data', $id_penjualan ?? 0) }}',
         },
         columns: [
             {data: 'DT_RowIndex', searchable: false, sortable: false},
@@ -240,8 +316,20 @@ $(function () {
         bSort: false,
         paginate: false
     })
-    .on('draw.dt', function () {
-        loadForm($('#diskon').val());
+    .on('draw.dt', function (e, settings, json) {
+        console.log('DataTable reloaded, calling loadForm...');
+        
+        // Update hidden inputs dengan data dari server response
+        if (json && json.total !== undefined) {
+            $('#total').val(json.total);
+            $('#total_item').val(json.total_item);
+        } else {
+            // Fallback: ambil dari DOM
+            $('#total').val($('.total').text() || 0);
+            $('#total_item').val($('.total_item').text() || 0);
+        }
+        
+        loadForm($('#diskon_value').val() || 0);
         setTimeout(() => {
             $('#diterima').trigger('input');
         }, 300);
@@ -249,14 +337,38 @@ $(function () {
 
     table2 = $('.table-produk').DataTable();
 
+    // Load form pertama kali
+    setTimeout(() => {
+        console.log('Loading form on page load...');
+        loadForm($('#diskon_value').val() || 0, $('#diterima').val() || 0);
+    }, 500);
+
    $('.btn-simpan').on('click', function (e) {
-    e.preventDefault(); // cegah submit form
+    e.preventDefault();
 
     const bayar     = parseInt($('#bayar').val()) || 0;
     const diterima  = parseInt($('#diterima').val()) || 0;
 
+    // Validasi input kosong
+    if (bayar <= 0) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Peringatan!',
+            text: 'Total bayar tidak valid. Mohon tambahkan produk terlebih dahulu.',
+            showConfirmButton: false,
+            timer: 3000
+        });
+        return;
+    }
+
     if (diterima < bayar) {
-        alert('Uang diterima tidak cukup untuk memproses transaksi!');
+        Swal.fire({
+            icon: 'warning',
+            title: 'Uang Tidak Cukup!',
+            text: 'Uang diterima tidak cukup untuk memproses transaksi!',
+            showConfirmButton: false,
+            timer: 3000
+        });
         $('#diterima').focus();
         return;
     }
@@ -264,24 +376,45 @@ $(function () {
     const btn = $(this);
     btn.prop('disabled', true).text('Memproses...');
 
-    $.post('{{ route('transaksi.simpan') }}', {
+    // Debug data yang akan dikirim
+    const formData = {
         _token: '{{ csrf_token() }}',
-        id_penjualan: '{{ $id_penjualan }}',
+        id_penjualan: '{{ $id_penjualan ?? '' }}',
         total: $('#total').val(),
         total_item: $('#total_item').val(),
         bayar: bayar,
         diterima: diterima,
-        id_member: $('#id_member').val(),
-        diskon: $('#diskon_value').val(),
-        diskon_type: $('#diskon_type').val(),
+        id_member: $('#id_member').val() || '',
+        diskon: $('#diskon_value').val() || 0,
+        diskon_type: $('#diskon_type').val() || 'percent',
         metode: 'cash'
-    })
-    .done(() => {
-        location.href = '{{ route('transaksi.selesai') }}';
+    };
+
+    console.log('Data yang akan dikirim:', formData);
+
+    $.post('{{ route('transaksi.simpan') }}', formData)
+    .done((response) => {
+        if (response.success) {
+            location.href = response.redirect;
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Gagal!',
+                text: response.message,
+                showConfirmButton: true
+            });
+            btn.prop('disabled', false).text('Cash');
+        }
     })
     .fail((xhr) => {
+        console.error('Error response:', xhr.responseJSON);
         let msg = xhr.responseJSON?.message || 'Gagal menyimpan transaksi Cash';
-        alert(msg);
+        Swal.fire({
+            icon: 'error',
+            title: 'Gagal!',
+            text: msg,
+            showConfirmButton: true
+        });
         btn.prop('disabled', false).text('Cash');
     });
 });
@@ -294,13 +427,25 @@ $(function () {
 
         if (jumlah < 1) {
             $(this).val(1);
-            alert('Jumlah tidak boleh kurang dari 1');
+            Swal.fire({
+                icon: 'warning',
+                title: 'Jumlah Tidak Valid!',
+                text: 'Jumlah tidak boleh kurang dari 1',
+                showConfirmButton: false,
+                timer: 3000
+            });
             return;
         }
 
         if (jumlah > 10000) {
             $(this).val(10000);
-            alert('Jumlah tidak boleh lebih dari 10000');
+            Swal.fire({
+                icon: 'warning',
+                title: 'Jumlah Terlalu Besar!',
+                text: 'Jumlah tidak boleh lebih dari 10000',
+                showConfirmButton: false,
+                timer: 3000
+            });
             return;
         }
 
@@ -315,9 +460,21 @@ $(function () {
         .fail(xhr => {
     let response = xhr.responseJSON;
     if (response && response.stok !== undefined) {
-        alert('Stok terbatas: hanya tersedia ' + response.stok);
+        Swal.fire({
+            icon: 'warning',
+            title: 'Stok Terbatas!',
+            text: 'Stok terbatas: hanya tersedia ' + response.stok,
+            showConfirmButton: false,
+            timer: 3000
+        });
     } else {
-        alert('Gagal menyimpan data'+ response.stok);
+        Swal.fire({
+            icon: 'error',
+            title: 'Gagal!',
+            text: 'Gagal menyimpan data',
+            showConfirmButton: false,
+            timer: 3000
+        });
     }
 });
     });
@@ -362,14 +519,22 @@ function cariProdukByKode() {
                 tambahProduk();
             } else {
                 Swal.fire({
-    icon: 'error',
-    title: 'Oops...',
-    text: 'Produk tidak ditemukan!',
-});
+                    icon: 'warning',
+                    title: 'Produk Tidak Ditemukan!',
+                    text: 'Produk tidak ditemukan!',
+                    showConfirmButton: false,
+                    timer: 3000
+                });
             }
         },
         error: function() {
-            alert('Gagal mengambil data produk');
+            Swal.fire({
+                icon: 'error',
+                title: 'Gagal!',
+                text: 'Gagal mengambil data produk',
+                showConfirmButton: false,
+                timer: 3000
+            });
         }
     });
 }
@@ -394,25 +559,48 @@ function tambahProduk() {
     $.post('{{ route('transaksi.store') }}', $('.form-produk').serialize())
         .done(response => {
             $('#kode_produk').val('').focus();
-            table.ajax.reload(() => loadForm($('#diskon').val()));
+            
+            // Jika ada id_penjualan baru dari response, update form
+            if (response.id_penjualan && !$('#id_penjualan').val()) {
+                $('#id_penjualan').val(response.id_penjualan);
+                // Reload halaman untuk memperbarui semua referensi id_penjualan
+                window.location.reload();
+            } else {
+                table.ajax.reload(() => loadForm($('#diskon').val()));
+            }
         })
        .fail(xhr => {
     let response = xhr.responseJSON;
     if (response && response.message) {
-        alert(response.message);
+        Swal.fire({
+            icon: 'error',
+            title: 'Gagal!',
+            text: response.message,
+            showConfirmButton: false,
+            timer: 3000
+        });
     } else {
-        alert('Gagal menyimpan data.');
+        Swal.fire({
+            icon: 'error',
+            title: 'Gagal!',
+            text: 'Gagal menyimpan data.',
+            showConfirmButton: false,
+            timer: 3000
+        });
     }
 });
 
 }
 
 function tampilMember() {
+    console.log('Opening member modal...');
     $('#modal-member').modal('show');
 }
 
 function pilihMember(id, kode) {
+    console.log('Attempting to select member:', id, kode);
     $.get(`/member/${id}`, function(res) {
+        console.log('Member data received:', res);
         $('#id_member').val(res.id_member);
         $('#kode_member').val(res.kode_member);
         $('#diskon_value').val(res.diskon);             // hidden input
@@ -432,9 +620,19 @@ function pilihMember(id, kode) {
             $('#diskon').val('-');
         }
 
-        loadForm(res.diskon, $('#diterima').val());
+        // Call loadForm with correct parameters including discount type
+        loadForm($('#diskon_value').val() || 0, $('#diterima').val() || 0);
         $('#diterima').val(0).focus().select();
         hideMember();
+    }).fail(function(xhr, status, error) {
+        console.error('Failed to get member data:', xhr.status, error);
+        console.error('Response:', xhr.responseText);
+        Swal.fire({
+            icon: 'error',
+            title: 'Error!',
+            text: 'Gagal memuat data member: ' + error,
+            showConfirmButton: true
+        });
     });
 }
 
@@ -455,22 +653,45 @@ function deleteData(url) {
             table.ajax.reload(() => loadForm($('#diskon').val()));
         })
         .fail(() => {
-            alert('Tidak dapat menghapus data');
+            Swal.fire({
+                icon: 'error',
+                title: 'Gagal!',
+                text: 'Tidak dapat menghapus data',
+                showConfirmButton: false,
+                timer: 3000
+            });
         });
     }
 }
 
 function loadForm(diskon = 0, diterima = 0) {
-    $('#total').val($('.total').text());
-    $('#total_item').val($('.total_item').text());
+    // Ambil total dari hidden input
+    let total = parseFloat($('#total').val()) || 0;
+    
+    // Jika total masih 0, ambil dari elemen .total
+    if (total === 0) {
+        const totalText = $('.total').text().trim();
+        total = parseFloat(totalText) || 0;
+    }
+    
+    console.log('LoadForm called with:', {diskon, diterima, total});
+
+    if (total === 0) {
+        console.log('Total is 0, skipping loadForm');
+        return;
+    }
+
+    $('#total').val(total);
+    $('#total_item').val($('.total_item').text() || 0);
 
     $.get(`{{ url('/transaksi/loadform') }}`, {
         diskon: diskon,
-        total: $('.total').text(),
+        total: total,
         diterima: diterima,
-        type: $('#diskon_type').val()    // ini penting: ambil type dari hidden input
+        type: $('#diskon_type').val() || 'percentage'
     })
     .done(response => {
+        console.log('LoadForm response:', response);
         $('#totalrp').val('Rp. '+ response.totalrp);
         $('#bayarrp').val('Rp. '+ response.bayarrp);
         $('#bayar').val(response.bayar);
@@ -483,8 +704,15 @@ function loadForm(diskon = 0, diterima = 0) {
             $('.tampil-terbilang').text(response.kembali_terbilang);
         }
     })
-    .fail(() => {
-        alert('Tidak dapat menampilkan data');
+    .fail((xhr, status, error) => {
+        console.error('LoadForm error:', xhr.responseText, status, error);
+        Swal.fire({
+            icon: 'error',
+            title: 'Gagal!',
+            text: 'Tidak dapat menampilkan data',
+            showConfirmButton: false,
+            timer: 3000
+        });
     });
 }
 

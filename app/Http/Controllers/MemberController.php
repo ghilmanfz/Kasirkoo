@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Member;
 use App\Models\Setting;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use PDF;
 
 class MemberController extends Controller
@@ -110,7 +111,16 @@ public function update(Request $request, $id)
      */
     public function show($id)
     {
+        Log::info('MemberController@show called', ['id' => $id, 'user_level' => auth()->user()->level]);
+        
         $member = Member::find($id);
+        
+        if (!$member) {
+            Log::warning('Member not found', ['id' => $id]);
+            return response()->json(['error' => 'Member not found'], 404);
+        }
+        
+        Log::info('Member found', ['member_id' => $member->id_member, 'member_name' => $member->nama]);
 
         return response()->json($member);
     }

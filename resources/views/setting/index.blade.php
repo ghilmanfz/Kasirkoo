@@ -105,7 +105,13 @@
                     }, 3000);
                 })
                 .fail(errors => {
-                    alert('Tidak dapat menyimpan data');
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Gagal!',
+                        text: 'Tidak dapat menyimpan data',
+                        showConfirmButton: false,
+                        timer: 3000
+                    });
                     return;
                 });
             }
@@ -135,7 +141,13 @@
                 $('[rel=icon]').attr('href', `{{ url('/') }}/${response.path_logo}`);
             })
             .fail(errors => {
-                alert('Tidak dapat menampilkan data');
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal!',
+                    text: 'Tidak dapat menampilkan data',
+                    showConfirmButton: false,
+                    timer: 3000
+                });
                 return;
             });
     }
